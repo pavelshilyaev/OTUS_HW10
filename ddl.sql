@@ -2,34 +2,48 @@
 
 CREATE SCHEMA public AUTHORIZATION postgres;
 
+-- DROP TYPE public."attr_type";
+
+CREATE TYPE public."attr_type" AS ENUM (
+	'text',
+	'date',
+	'bool');
+
+-- DROP SEQUENCE public.attr_types_id_seq;
+
+CREATE SEQUENCE public.attr_types_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 9223372036854775807
+	START 1;
+-- DROP SEQUENCE public.attr_values_id_seq;
+
+CREATE SEQUENCE public.attr_values_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 9223372036854775807
+	START 1;
 -- DROP SEQUENCE public.films_id_seq;
 
 CREATE SEQUENCE public.films_id_seq
 	INCREMENT BY 1
 	MINVALUE 1
 	MAXVALUE 9223372036854775807
-	START 1;
--- DROP SEQUENCE public.halls_id_seq;
+	START 1;-- public."attributes" definition
 
-CREATE SEQUENCE public.halls_id_seq
-	INCREMENT BY 1
-	MINVALUE 1
-	MAXVALUE 9223372036854775807
-	START 1;
--- DROP SEQUENCE public.seanses_id_seq;
+-- Drop table
 
-CREATE SEQUENCE public.seanses_id_seq
-	INCREMENT BY 1
-	MINVALUE 1
-	MAXVALUE 9223372036854775807
-	START 1;
--- DROP SEQUENCE public.tickets_id_seq;
+-- DROP TABLE public."attributes";
 
-CREATE SEQUENCE public.tickets_id_seq
-	INCREMENT BY 1
-	MINVALUE 1
-	MAXVALUE 9223372036854775807
-	START 1;-- public.films definition
+CREATE TABLE public."attributes" (
+	id int4 NOT NULL DEFAULT nextval('attr_types_id_seq'::regclass),
+	"type" public."attr_type" NOT NULL,
+	"name" varchar NOT NULL,
+	CONSTRAINT attr_types_pk PRIMARY KEY (id)
+);
+
+
+-- public.films definition
 
 -- Drop table
 
@@ -37,62 +51,54 @@ CREATE SEQUENCE public.tickets_id_seq
 
 CREATE TABLE public.films (
 	id serial4 NOT NULL,
-	film_name varchar NOT NULL,
+	title varchar NOT NULL,
 	CONSTRAINT films_pk PRIMARY KEY (id)
 );
 
 
--- public.halls definition
+-- public.attr_values definition
 
 -- Drop table
 
--- DROP TABLE public.halls;
+-- DROP TABLE public.attr_values;
 
-CREATE TABLE public.halls (
+CREATE TABLE public.attr_values (
 	id serial4 NOT NULL,
-	hall_name varchar NOT NULL,
-	number_of_seats int4 NOT NULL,
-	CONSTRAINT halls_pk PRIMARY KEY (id)
-);
-
-
--- public.seanses definition
-
--- Drop table
-
--- DROP TABLE public.seanses;
-
-CREATE TABLE public.seanses (
-	id serial4 NOT NULL,
-	hall_id int4 NOT NULL,
 	film_id int4 NOT NULL,
-	start_time timestamp NOT NULL,
-	end_time timestamp NOT NULL,
-	CONSTRAINT seanses_check CHECK ((start_time < end_time)),
-	CONSTRAINT seanses_pk PRIMARY KEY (id),
-	CONSTRAINT seanses_fk FOREIGN KEY (film_id) REFERENCES public.films(id),
-	CONSTRAINT seanses_fk_1 FOREIGN KEY (hall_id) REFERENCES public.halls(id)
+	attr_id int4 NOT NULL,
+	date_value date NULL,
+	text_value text NULL,
+	bool_value bool NULL,
+	CONSTRAINT attr_values_pk PRIMARY KEY (id),
+	CONSTRAINT attr_values_fk FOREIGN KEY (film_id) REFERENCES public.films(id),
+	CONSTRAINT attr_values_fk_1 FOREIGN KEY (attr_id) REFERENCES public."attributes"(id)
 );
-CREATE INDEX seanses_film_id_idx ON seanses USING btree (film_id);
-CREATE INDEX seanses_hall_id_idx ON seanses USING btree (hall_id);
+CREATE INDEX attr_values_attr_id_idx ON attr_values USING btree (attr_id);
+CREATE INDEX attr_values_film_id_idx ON attr_values USING btree (film_id);
 
 
--- public.tickets definition
+-- public.future_dates source
 
--- Drop table
+CREATE OR REPLACE VIEW public.future_dates
+AS SELECT f.title, a.name, v.date_value
+   FROM films f
+   LEFT JOIN attr_values v ON v.film_id = f.id
+   LEFT JOIN attributes a ON a.id = v.attr_id
+  WHERE v.date_value >= now() AND v.date_value <= ('now'::text::date + '20 days'::interval);
 
--- DROP TABLE public.tickets;
 
-CREATE TABLE public.tickets (
-	id serial4 NOT NULL,
-	sold bool NOT NULL DEFAULT true,
-	price numeric NOT NULL,
-	"row" int4 NOT NULL,
-	col int4 NOT NULL,
-	seanse_id int4 NOT NULL,
-	CONSTRAINT tickets_pk PRIMARY KEY (id),
-	CONSTRAINT tickets_fk FOREIGN KEY (seanse_id) REFERENCES public.seanses(id)
-);
-CREATE INDEX tickets_seanse_id_idx ON tickets USING btree (seanse_id);
+-- public.all_props source
+
+CREATE OR REPLACE VIEW public.all_props
+AS SELECT f.title, a.name, 
+        CASE
+            WHEN a.type = 'text'::attr_type THEN v.text_value
+            WHEN a.type = 'date'::attr_type THEN to_char(v.date_value::timestamp with time zone, 'DD.MM.YYYY'::text)
+            WHEN a.type = 'bool'::attr_type THEN v.bool_value::text
+            ELSE NULL::text
+        END AS text_value
+   FROM films f
+   LEFT JOIN attr_values v ON v.film_id = f.id
+   LEFT JOIN attributes a ON a.id = v.attr_id;
 
 
