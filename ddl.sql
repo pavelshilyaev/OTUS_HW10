@@ -7,7 +7,8 @@ CREATE SCHEMA public AUTHORIZATION postgres;
 CREATE TYPE public."attr_type" AS ENUM (
 	'text',
 	'date',
-	'bool');
+	'bool',
+	'float');
 
 -- DROP SEQUENCE public.attr_types_id_seq;
 
@@ -69,22 +70,13 @@ CREATE TABLE public.attr_values (
 	date_value date NULL,
 	text_value text NULL,
 	bool_value bool NULL,
+	float_val float4 NULL,
 	CONSTRAINT attr_values_pk PRIMARY KEY (id),
 	CONSTRAINT attr_values_fk FOREIGN KEY (film_id) REFERENCES public.films(id),
 	CONSTRAINT attr_values_fk_1 FOREIGN KEY (attr_id) REFERENCES public."attributes"(id)
 );
 CREATE INDEX attr_values_attr_id_idx ON attr_values USING btree (attr_id);
 CREATE INDEX attr_values_film_id_idx ON attr_values USING btree (film_id);
-
-
--- public.future_dates source
-
-CREATE OR REPLACE VIEW public.future_dates
-AS SELECT f.title, a.name, v.date_value
-   FROM films f
-   LEFT JOIN attr_values v ON v.film_id = f.id
-   LEFT JOIN attributes a ON a.id = v.attr_id
-  WHERE v.date_value >= now() AND v.date_value <= ('now'::text::date + '20 days'::interval);
 
 
 -- public.all_props source
@@ -95,10 +87,21 @@ AS SELECT f.title, a.name,
             WHEN a.type = 'text'::attr_type THEN v.text_value
             WHEN a.type = 'date'::attr_type THEN to_char(v.date_value::timestamp with time zone, 'DD.MM.YYYY'::text)
             WHEN a.type = 'bool'::attr_type THEN v.bool_value::text
+            WHEN a.type = 'float'::attr_type THEN v.float_val::text
             ELSE NULL::text
         END AS text_value
    FROM films f
    LEFT JOIN attr_values v ON v.film_id = f.id
    LEFT JOIN attributes a ON a.id = v.attr_id;
+
+
+-- public.future_dates source
+
+CREATE OR REPLACE VIEW public.future_dates
+AS SELECT f.title, a.name, v.date_value
+   FROM films f
+   LEFT JOIN attr_values v ON v.film_id = f.id
+   LEFT JOIN attributes a ON a.id = v.attr_id
+  WHERE v.date_value >= now() AND v.date_value <= ('now'::text::date + '20 days'::interval);
 
 

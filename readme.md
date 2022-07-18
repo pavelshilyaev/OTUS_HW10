@@ -13,7 +13,8 @@
 CREATE TYPE public."attr_type" AS ENUM (
 	'text',
 	'date',
-	'bool');
+	'bool',
+	'float');
 ```
 
 Наглядно схема хранения представлена на рисунке:
@@ -44,6 +45,7 @@ AS SELECT f.title, a.name,
             WHEN a.type = 'text'::attr_type THEN v.text_value
             WHEN a.type = 'date'::attr_type THEN to_char(v.date_value::timestamp with time zone, 'DD.MM.YYYY'::text)
             WHEN a.type = 'bool'::attr_type THEN v.bool_value::text
+            WHEN a.type = 'float'::attr_type THEN v.float_val::text
             ELSE NULL::text
         END AS text_value
    FROM films f
